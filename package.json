@@ -1,0 +1,35 @@
+{
+  "name": "prompt-queue",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "start": "ng serve",
+    "dev": "ng serve --host 0.0.0.0",
+    "build": "ng build",
+    "test": "vitest run",
+    "postinstall": "node scripts/icons.mjs"
+  },
+  "dependencies": {
+    "@angular/cdk": "22.1.7",
+    "@angular/common": "22.1.7",
+    "@angular/compiler": "22.1.7",
+    "@angular/core": "22.1.7",
+    "@angular/forms": "22.1.7",
+    "@angular/platform-browser": "22.1.7",
+    "@fontsource/dm-sans": "^5.2.8",
+    "@fontsource/lora": "^5.2.8",
+    "@phosphor-icons/core": "^2.1.1",
+    "dexie": "^4.2.0",
+    "fflate": "^0.8.2",
+    "rxjs": "^7.8.2",
+    "tslib": "^2.8.1"
+  },
+  "devDependencies": {
+    "@angular/build": "22.1.8",
+    "@angular/cli": "22.1.8",
+    "@angular/compiler-cli": "22.1.7",
+    "fake-indexeddb": "^6.2.4",
+    "typescript": "~6.0.0",
+    "vitest": "^4.1.0"
+  }
+}

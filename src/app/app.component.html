@@ -1,0 +1,54 @@
+<div class="app-shell" [class.compact]="ui.settings().density==='compact'">
+  <a class="skip-link" href="#main-content" (click)="skipToContent($event)">Skip to content</a>
+  @if(mobileNav()){<button class="nav-scrim" aria-label="Close navigation" (click)="mobileNav.set(false)"></button>}
+  <aside class="sidebar" [class.open]="mobileNav()" [attr.inert]="narrow() && !mobileNav() ? '' : null" aria-label="Main navigation">
+    <a class="brand" href="#queue" (click)="navigate('queue')"><pq-icon name="stack"/><span><strong>Prompt Queue</strong><small>Plan ahead. Keep the flow.</small></span></a>
+    <nav>
+      @for(item of navigation;track item.view){<a [href]="'#'+item.view" [class.active]="view()===item.view" [attr.aria-current]="view()===item.view?'page':null" (click)="navigate(item.view)"><pq-icon [name]="item.icon"/><span>{{item.label}}</span>@if(count(item.view)!==null){<span class="nav-count">{{count(item.view)}}</span>}</a>}
+      <div class="nav-divider"></div>
+      <a href="#backup" [class.active]="view()==='backup'" (click)="navigate('backup')"><pq-icon name="export"/><span>Export / Import</span></a>
+      <a href="#settings" [class.active]="view()==='settings'" (click)="navigate('settings')"><pq-icon name="gear"/><span>Settings</span></a>
+    </nav>
+    <div class="sidebar-footer"><span>v0.1.0</span><span class="local-dot"></span><span>Local only</span></div>
+  </aside>
+  <div class="workspace">
+    <header class="topbar"><button class="icon-button mobile-menu" aria-label="Toggle navigation" [attr.aria-expanded]="mobileNav()" (click)="mobileNav.update(v=>!v)"><pq-icon name="list"/></button><div class="topbar-tools"><label class="search-box"><pq-icon name="magnifying-glass"/><input type="search" aria-label="Search prompts, snippets, and tags" placeholder="Search prompts, tags…" [ngModel]="query()" (ngModelChange)="query.set($event)">@if(query()){<button class="icon-button" aria-label="Clear search" (click)="query.set('')"><pq-icon name="x"/></button>}</label><span class="theme-indicator" title="Warm light theme"><pq-icon name="sun"/></span><button class="icon-button settings-button" aria-label="Open settings" (click)="navigate('settings')"><pq-icon name="gear"/></button></div></header>
+    <main id="main-content" tabindex="-1" class="main-layout" [class.single-column]="view()!=='queue' || searching()">
+      <section class="main-panel" [class.queue-panel]="view()==='queue' && !searching()">
+        <header class="page-header"><div><h1>{{searching()?'Search your workspace':headings[view()]}}</h1><p>{{searching()?resultCount()+' matching items · titles, full text, and tags':descriptions[view()]}}</p></div>@if(!searching()&&(view()==='queue'||view()==='quickPrompts'||view()==='snippets')){<button class="button primary add-prompt" [disabled]="!store.ready()" (click)="createCurrent()"><pq-icon name="plus"/>{{view()==='snippets'?'Add snippet':view()==='quickPrompts'?'Add quick prompt':'Add prompt'}}</button>}</header>
+        @if(store.error()){<div class="error-state" role="alert"><pq-icon name="warning"/><h2>Local storage is unavailable</h2><p>{{store.error()}}</p><p>Check that site storage is allowed in your browser, then reload. Existing data has not been intentionally removed.</p><button class="button" (click)="retryStorage()">Retry</button></div>}
+        @else if(!store.ready()){<div class="empty-state" role="status"><pq-icon name="arrows-clockwise"/><h2>Opening your workspace…</h2><p>Getting your prompts from this device.</p></div>}
+        @else {
+          @if(searching()){
+            @if(prompts().length){<h2 class="results-heading">{{view()==='archive'?'Archived prompts':'Queue'}} <span>{{prompts().length}}</span></h2><div class="queue-list">@for(prompt of prompts();track prompt.id){<pq-prompt-card [prompt]="prompt" [index]="$index" [attachments]="filesFor(prompt.id)" [archived]="view()==='archive'" [cdkDragDisabled]="true" [reorderEnabled]="false" (edit)="openEditor('prompt',$event)" (archive)="archive($event)" (restore)="restore($event)" (remove)="deletePrompt($event)" (openAttachment)="viewer.set($event)" (searchTag)="query.set($event)"/>}</div>}
+            @if(quickPrompts().length){<h2 class="results-heading">Quick prompts <span>{{quickPrompts().length}}</span></h2><pq-library [items]="quickPrompts()" [full]="true" (edit)="openEditor('quickPrompts',$event)" (remove)="deleteLibrary('quickPrompts',$event)"/>}
+            @if(snippets().length){<h2 class="results-heading">Snippets <span>{{snippets().length}}</span></h2><pq-library [items]="snippets()" kind="snippets" [full]="true" (edit)="openEditor('snippets',$event)" (remove)="deleteLibrary('snippets',$event)"/>}
+            @if(!resultCount()){<div class="empty-state"><pq-icon name="magnifying-glass"/><h2>No matching prompts</h2><p>Try a different phrase or tag.</p><button class="button" (click)="query.set('')">Clear search</button></div>}
+          } @else {
+            @switch(view()){
+              @case('queue'){
+                <div class="queue-list" cdkDropList [cdkDropListData]="prompts()" (cdkDropListDropped)="drop($event)">
+                  @for(prompt of prompts();track prompt.id){<pq-prompt-card [prompt]="prompt" [index]="$index" [attachments]="filesFor(prompt.id)" (edit)="openEditor('prompt',$event)" (archive)="archive($event)" (openAttachment)="viewer.set($event)" (searchTag)="query.set($event)" (move)="move(prompt,$event)"/>}
+                  @empty{<div class="empty-state"><pq-icon name="clipboard-text"/><h2>A little room for your next idea</h2><p>Add a prompt now. It’ll be here when you’re ready.</p><button class="button primary" (click)="openEditor()"><pq-icon name="plus"/>Create your first prompt</button></div>}
+                </div>
+              }
+              @case('quickPrompts'){<pq-library [items]="quickPrompts()" [full]="true" (edit)="openEditor('quickPrompts',$event)" (remove)="deleteLibrary('quickPrompts',$event)"/>}
+              @case('snippets'){<pq-library [items]="snippets()" kind="snippets" [full]="true" (edit)="openEditor('snippets',$event)" (remove)="deleteLibrary('snippets',$event)"/>}
+              @case('archive'){<div class="queue-list">@for(prompt of archived();track prompt.id){<pq-prompt-card [prompt]="prompt" [archived]="true" [cdkDragDisabled]="true" [attachments]="filesFor(prompt.id)" (edit)="openEditor('prompt',$event)" (restore)="restore($event)" (remove)="deletePrompt($event)" (openAttachment)="viewer.set($event)" (searchTag)="query.set($event)"/>}@empty{<div class="empty-state"><pq-icon name="archive"/><h2>All clear, for now</h2><p>Archived prompts stay here until you need them again.</p><button class="button" (click)="navigate('queue')">Back to your queue</button></div>}</div>}
+              @case('attachments'){
+                <div class="attachments-list">@for(attachment of attachments();track attachment.id){<article class="attachment-row"><pq-attachment [attachment]="attachment" (open)="viewer.set($event)"/><div class="attachment-owner"><span>Attached to <button class="text-button" (click)="openOwner(attachment)">{{owner(attachment)?.title??'Unknown prompt'}}</button></span><small>{{attachment.mimeType || 'Unknown file type'}}@if(owner(attachment)?.archivedAt){ · Archived}</small></div><div class="attachment-actions"><button class="icon-button" [attr.aria-label]="'View '+attachment.filename" (click)="viewer.set(attachment)"><pq-icon name="folder-open"/></button><button class="icon-button" [attr.aria-label]="'Download '+attachment.filename" (click)="download(attachment)"><pq-icon name="download-simple"/></button><button class="icon-button danger" [attr.aria-label]="'Delete '+attachment.filename" (click)="deleteAttachment(attachment)"><pq-icon name="trash"/></button></div></article>}@empty{<div class="empty-state"><pq-icon name="paperclip"/><h2>Keep the context close</h2><p>Files you attach to your prompts will appear here.</p><button class="button" (click)="navigate('queue')">Go to your queue</button></div>}</div>
+              }
+              @case('settings'){<pq-settings/>}
+              @case('backup'){<pq-backup/>}
+            }
+          }
+        }
+      </section>
+      @if(view()==='queue'&&!searching()){<aside class="right-rail" aria-label="Reusable prompts and local storage"><pq-library [items]="store.quickPrompts().slice(0,8)" (viewAll)="navigate('quickPrompts')" (edit)="openEditor('quickPrompts',$event)"/><pq-library [items]="store.snippets().slice(0,3)" kind="snippets" (viewAll)="navigate('snippets')" (edit)="openEditor('snippets',$event)"/><pq-storage-panel/></aside>}
+    </main>
+  </div>
+</div>
+@if(editor();as state){<pq-editor [kind]="state.kind" [item]="state.item" (saved)="editor.set(null)" (dismiss)="editor.set(null)"/>}
+@if(viewer();as attachment){<pq-viewer [attachment]="attachment" (dismiss)="viewer.set(null)"/>}
+@if(confirmation();as confirm){<pq-dialog [heading]="confirm.title" [busy]="confirmBusy()" (dismiss)="confirmation.set(null)"><p class="confirmation-body">{{confirm.body}}</p>@if(confirmError()){<p class="inline-error" role="alert">{{confirmError()}}</p>}<footer class="dialog-actions"><button class="button" [disabled]="confirmBusy()" (click)="confirmation.set(null)">Cancel</button><button class="button destructive" [disabled]="confirmBusy()" (click)="confirmDelete()">{{confirmBusy()?'Deleting…':'Delete permanently'}}</button></footer></pq-dialog>}
+<div class="toast-region" aria-live="polite" aria-atomic="true">@if(ui.toast();as toast){<div class="toast" [class.error]="toast.error"><pq-icon [name]="toast.error?'warning':'check'"/><span>{{toast.text}}</span><button class="icon-button" aria-label="Dismiss notification" (click)="ui.toast.set(null)"><pq-icon name="x"/></button></div>}</div>
