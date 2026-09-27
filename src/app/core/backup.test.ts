@@ -27,7 +27,7 @@ function backupData(): BackupData {
     data,
     createdAt: 300,
   };
-  return { prompts: [prompt], quickPrompts: [], snippets: [], attachments: [attachment], settings: { density: 'compact' } };
+  return { prompts: [prompt], quickPrompts: [], snippets: [], attachments: [attachment], settings: { density: 'compact', theme: 'oled', showQuickPrompts: false } };
 }
 
 describe('ZIP backup', () => {
@@ -43,10 +43,10 @@ describe('ZIP backup', () => {
     await db.prompts.add(source.prompts[0]);
     await db.attachments.add(source.attachments[0]);
 
-    const archive = await exportBackup({ density: 'compact' });
+    const archive = await exportBackup(source.settings!);
     const restored = await readBackup(archive);
 
-    expect(restored.settings).toEqual({ density: 'compact' });
+    expect(restored.settings).toEqual({ density: 'compact', theme: 'oled', showQuickPrompts: false });
     expect(restored.prompts).toEqual([prompt]);
     expect(restored.attachments[0].data.type).toBe('text/plain');
     expect(await restored.attachments[0].data.text()).toBe('original bytes');
@@ -75,7 +75,7 @@ describe('ZIP backup', () => {
 
     expect((await db.prompts.toArray()).map(({ id }) => id)).toEqual(['prompt-one']);
     expect((await db.meta.get(SEED_MARKER_KEY))?.value).toBe(true);
-    expect(settings).toEqual({ density: 'compact' });
+    expect(settings).toEqual({ density: 'compact', theme: 'oled', showQuickPrompts: false });
     expect(await (await db.attachments.get('attachment-one'))?.data.text()).toBe('original bytes');
   });
 

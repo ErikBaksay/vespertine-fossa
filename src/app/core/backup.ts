@@ -105,6 +105,11 @@ function validateSettings(value: unknown): AppSettings | undefined {
   if (value === undefined) return undefined;
   if (!isRecord(value) || (value['density'] !== 'comfortable' && value['density'] !== 'compact')) fail('settings are invalid.');
   const settings: AppSettings = { density: value['density'] };
+  const theme = value['theme'];
+  if (theme !== undefined) {
+    if (theme !== 'light' && theme !== 'dark' && theme !== 'oled') fail('settings are invalid.');
+    settings.theme = theme;
+  }
   for (const key of ['showQuickPrompts', 'showSnippets', 'showCommands', 'showStorage'] as const) {
     if (value[key] === undefined) continue;
     if (typeof value[key] !== 'boolean') fail('settings are invalid.');

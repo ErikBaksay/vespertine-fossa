@@ -32,6 +32,7 @@ export interface Attachment {
 
 export interface AppSettings {
   density: 'comfortable' | 'compact';
+  theme?: 'light' | 'dark' | 'oled';
   showQuickPrompts?: boolean;
   showSnippets?: boolean;
   showCommands?: boolean;
