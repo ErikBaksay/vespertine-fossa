@@ -32,6 +32,10 @@ export interface Attachment {
 
 export interface AppSettings {
   density: 'comfortable' | 'compact';
+  showQuickPrompts?: boolean;
+  showSnippets?: boolean;
+  showCommands?: boolean;
+  showStorage?: boolean;
 }
 
 export type LibraryKind = 'quickPrompts' | 'snippets' | 'commands';

@@ -29,7 +29,7 @@ npm test        # focused persistence and backup tests
 
 ## Storage and privacy
 
-All prompt text, records, and original attachment Blobs live in the origin's IndexedDB database, `prompt-queue`. Dexie schema version 1 is declared explicitly; add subsequent `.version(n).stores(...).upgrade(...)` migrations without changing previously shipped versions. A transactional metadata marker seeds editable examples once, even after you delete all samples. Only the density preference is in localStorage. Dexie live queries update open views when records change.
+All prompt text, records, and original attachment Blobs live in the origin's IndexedDB database, `prompt-queue`. The Dexie database uses schema version 2 and retains version 1 for upgrades from existing workspaces; add future versions without changing previously shipped schemas. A transactional metadata marker seeds editable examples once, even after you delete all samples. Density and queue panel visibility preferences are in localStorage. Dexie live queries update open views when records change.
 
 There are no accounts, backend, AI APIs, analytics, telemetry, remote fonts, or runtime third-party requests. GitHub serves static application files and receives ordinary hosting requests; it does not receive your workspace data. Data is scoped to a browser profile and origin, not synchronized or encrypted by this app. Sites sharing an origin share its storage security boundary. Clearing browser/site data removes the workspace. Persistence grants reduce automatic eviction but do not prevent manual deletion. This version does not install an offline service worker.
 

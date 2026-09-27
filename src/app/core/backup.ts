@@ -104,7 +104,13 @@ function validateLibraryItem(value: unknown, collection: string, index: number):
 function validateSettings(value: unknown): AppSettings | undefined {
   if (value === undefined) return undefined;
   if (!isRecord(value) || (value['density'] !== 'comfortable' && value['density'] !== 'compact')) fail('settings are invalid.');
-  return { density: value['density'] };
+  const settings: AppSettings = { density: value['density'] };
+  for (const key of ['showQuickPrompts', 'showSnippets', 'showCommands', 'showStorage'] as const) {
+    if (value[key] === undefined) continue;
+    if (typeof value[key] !== 'boolean') fail('settings are invalid.');
+    settings[key] = value[key];
+  }
+  return settings;
 }
 
 function filename(value: unknown, field: string): string {

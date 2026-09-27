@@ -24,6 +24,7 @@ export class AppComponent {
   narrow=signal(window.innerWidth<=760);view=signal<View>(this.readHash());query=signal('');mobileNav=signal(false);editor=signal<{kind:EditorKind;item:Prompt|LibraryItem|null}|null>(null);viewer=signal<Attachment|null>(null);confirmation=signal<Confirmation|null>(null);confirmBusy=signal(false);confirmError=signal('');
   navigation: {view:View;label:string;icon:string}[]=[{view:'queue',label:'Queue',icon:'user'},{view:'quickPrompts',label:'Quick Prompts',icon:'sparkle'},{view:'snippets',label:'Snippets',icon:'note'},{view:'commands',label:'Commands',icon:'file-code'},{view:'attachments',label:'Attachments',icon:'paperclip'},{view:'archive',label:'Archive',icon:'archive'}];
   active=computed(()=>this.store.prompts().filter(p=>p.archivedAt===null));archived=computed(()=>this.store.prompts().filter(p=>p.archivedAt!==null).sort((a,b)=>(b.archivedAt??0)-(a.archivedAt??0)));
+  showRightRail=computed(()=>{const settings=this.ui.settings();return settings.showQuickPrompts!==false||settings.showSnippets!==false||settings.showCommands!==false||settings.showStorage!==false;});
   searching=computed(()=>this.query().trim().length>0);
   prompts=computed(()=>(this.view()==='archive'?this.archived():this.active()).filter(p=>this.matches(p)));
   quickPrompts=computed(()=>this.store.quickPrompts().filter(p=>this.matches(p)));snippets=computed(()=>this.store.snippets().filter(p=>this.matches(p)));commands=computed(()=>this.store.commands().filter(p=>this.matches(p)));
