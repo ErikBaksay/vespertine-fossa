@@ -12,6 +12,7 @@ export class StoreService implements OnDestroy {
   readonly prompts = signal<Prompt[]>([]);
   readonly quickPrompts = signal<LibraryItem[]>([]);
   readonly snippets = signal<LibraryItem[]>([]);
+  readonly commands = signal<LibraryItem[]>([]);
   readonly attachments = signal<Attachment[]>([]);
   readonly ready = signal(false);
   readonly error = signal<string | null>(null);
@@ -31,18 +32,20 @@ export class StoreService implements OnDestroy {
       .then(() => new Promise<void>((resolve, reject) => {
         let awaitingFirstRows = true;
         this.subscription = liveQuery(async () => {
-          const [prompts, quickPrompts, snippets, attachments] = await Promise.all([
+          const [prompts, quickPrompts, snippets, commands, attachments] = await Promise.all([
             db.prompts.orderBy('position').toArray(),
             db.quickPrompts.orderBy('position').toArray(),
             db.snippets.orderBy('position').toArray(),
+            db.commands.orderBy('position').toArray(),
             db.attachments.orderBy('createdAt').toArray(),
           ]);
-          return { prompts, quickPrompts, snippets, attachments };
+          return { prompts, quickPrompts, snippets, commands, attachments };
         }).subscribe({
-          next: ({ prompts, quickPrompts, snippets, attachments }) => {
+          next: ({ prompts, quickPrompts, snippets, commands, attachments }) => {
             this.prompts.set(prompts);
             this.quickPrompts.set(quickPrompts);
             this.snippets.set(snippets);
+            this.commands.set(commands);
             this.attachments.set(attachments);
             if (awaitingFirstRows) {
               awaitingFirstRows = false;

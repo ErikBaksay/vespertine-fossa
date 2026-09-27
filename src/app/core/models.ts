@@ -34,7 +34,7 @@ export interface AppSettings {
   density: 'comfortable' | 'compact';
 }
 
-export type LibraryKind = 'quickPrompts' | 'snippets';
+export type LibraryKind = 'quickPrompts' | 'snippets' | 'commands';
 
 export interface MetaRecord {
   key: string;

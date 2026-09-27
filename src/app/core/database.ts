@@ -8,6 +8,7 @@ export class PromptQueueDatabase extends Dexie {
   prompts!: EntityTable<Prompt, 'id'>;
   quickPrompts!: EntityTable<LibraryItem, 'id'>;
   snippets!: EntityTable<LibraryItem, 'id'>;
+  commands!: EntityTable<LibraryItem, 'id'>;
   attachments!: EntityTable<Attachment, 'id'>;
   meta!: EntityTable<MetaRecord, 'key'>;
 
@@ -20,6 +21,14 @@ export class PromptQueueDatabase extends Dexie {
       attachments: '&id, promptId, createdAt',
       meta: '&key',
     });
+    this.version(2).stores({
+      prompts: '&id, position, archivedAt, updatedAt, *tags',
+      quickPrompts: '&id, position, updatedAt, *tags',
+      snippets: '&id, position, updatedAt, *tags',
+      commands: '&id, position, updatedAt, *tags',
+      attachments: '&id, promptId, createdAt',
+      meta: '&key',
+    });
   }
 }
 
@@ -28,7 +37,7 @@ export const db = new PromptQueueDatabase();
 export async function initializeDatabase(database: PromptQueueDatabase = db): Promise<void> {
   await database.transaction(
     'rw',
-    [database.prompts, database.quickPrompts, database.snippets, database.attachments, database.meta],
+    [database.prompts, database.quickPrompts, database.snippets, database.commands, database.attachments, database.meta],
     async () => {
       if (await database.meta.get(SEED_MARKER_KEY)) return;
 

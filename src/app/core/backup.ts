@@ -3,7 +3,7 @@ import { db } from './database';
 import type { AppSettings, Attachment, LibraryItem, Prompt } from './models';
 
 const FORMAT = 'prompt-queue-backup';
-const VERSION = 1;
+const VERSION = 2;
 const METADATA_PATH = 'metadata.json';
 const MAX_ARCHIVE_BYTES = 512 * 1024 * 1024;
 const MAX_UNCOMPRESSED_BYTES = 1024 * 1024 * 1024;
@@ -17,6 +17,7 @@ export interface BackupData {
   prompts: Prompt[];
   quickPrompts: LibraryItem[];
   snippets: LibraryItem[];
+  commands?: LibraryItem[];
   attachments: Attachment[];
   settings?: AppSettings;
 }
@@ -32,6 +33,7 @@ interface BackupMetadata {
   prompts: Prompt[];
   quickPrompts: LibraryItem[];
   snippets: LibraryItem[];
+  commands: LibraryItem[];
   attachments: AttachmentMetadata[];
   settings?: AppSettings;
 }
@@ -141,7 +143,7 @@ function safeArchivePath(path: string): boolean {
 }
 
 function parseMetadata(value: unknown): { metadata: BackupMetadata; attachmentMetadata: AttachmentMetadata[] } {
-  if (!isRecord(value) || value['format'] !== FORMAT || value['version'] !== VERSION) fail('format or version is unsupported.');
+  if (!isRecord(value) || value['format'] !== FORMAT || (value['version'] !== 1 && value['version'] !== VERSION)) fail('format or version is unsupported.');
   if (!Array.isArray(value['prompts']) || !Array.isArray(value['quickPrompts']) || !Array.isArray(value['snippets']) || !Array.isArray(value['attachments'])) {
     fail('record collections are missing.');
   }
@@ -149,12 +151,15 @@ function parseMetadata(value: unknown): { metadata: BackupMetadata; attachmentMe
   const prompts = value['prompts'].map(validatePrompt);
   const quickPrompts = value['quickPrompts'].map((item, index) => validateLibraryItem(item, 'quickPrompts', index));
   const snippets = value['snippets'].map((item, index) => validateLibraryItem(item, 'snippets', index));
+  const commands = value['commands'] === undefined && value['version'] === 1 ? [] :
+    Array.isArray(value['commands']) ? value['commands'].map((item, index) => validateLibraryItem(item, 'commands', index)) : fail('commands are missing.');
   const attachmentMetadata = value['attachments'].map(validateAttachmentMetadata);
   uniqueIds(prompts, 'prompts');
   uniqueIds(quickPrompts, 'quickPrompts');
   uniqueIds(snippets, 'snippets');
+  uniqueIds(commands, 'commands');
   uniqueIds(attachmentMetadata, 'attachments');
-  uniqueIds([...prompts, ...quickPrompts, ...snippets, ...attachmentMetadata], 'all records');
+  uniqueIds([...prompts, ...quickPrompts, ...snippets, ...commands, ...attachmentMetadata], 'all records');
 
   const promptIds = new Set(prompts.map(({ id }) => id));
   for (const attachment of attachmentMetadata) {
@@ -171,6 +176,7 @@ function parseMetadata(value: unknown): { metadata: BackupMetadata; attachmentMe
     prompts,
     quickPrompts,
     snippets,
+    commands,
     attachments: attachmentMetadata,
     settings: validateSettings(value['settings']),
   };
@@ -249,10 +255,10 @@ function cloneWithIds<T extends { id: string; position: number }>(records: T[], 
 }
 
 export async function exportBackup(settings: AppSettings): Promise<Blob> {
-  const [prompts, quickPrompts, snippets, attachments] = await db.transaction(
+  const [prompts, quickPrompts, snippets, commands, attachments] = await db.transaction(
     'r',
-    [db.prompts, db.quickPrompts, db.snippets, db.attachments],
-    () => Promise.all([db.prompts.toArray(), db.quickPrompts.toArray(), db.snippets.toArray(), db.attachments.toArray()]),
+    [db.prompts, db.quickPrompts, db.snippets, db.commands, db.attachments],
+    () => Promise.all([db.prompts.toArray(), db.quickPrompts.toArray(), db.snippets.toArray(), db.commands.toArray(), db.attachments.toArray()]),
   );
 
   const files: Record<string, Uint8Array> = {};
@@ -272,6 +278,7 @@ export async function exportBackup(settings: AppSettings): Promise<Blob> {
     prompts,
     quickPrompts,
     snippets,
+    commands,
     attachments: attachmentMetadata,
     settings,
   };
@@ -324,6 +331,7 @@ export async function readBackup(file: Blob): Promise<BackupData> {
     prompts: metadata.prompts,
     quickPrompts: metadata.quickPrompts,
     snippets: metadata.snippets,
+    commands: metadata.commands,
     attachments,
     settings: metadata.settings,
   };
@@ -339,6 +347,7 @@ export async function importBackup(data: BackupData, mode: 'merge' | 'replace'):
     prompts: data.prompts,
     quickPrompts: data.quickPrompts,
     snippets: data.snippets,
+    commands: data.commands ?? [],
     attachments: attachmentMetadata,
     settings: data.settings,
   });
@@ -350,25 +359,28 @@ export async function importBackup(data: BackupData, mode: 'merge' | 'replace'):
     data: data.attachments[index].data,
   }));
 
-  await db.transaction('rw', [db.prompts, db.quickPrompts, db.snippets, db.attachments], async () => {
+  await db.transaction('rw', [db.prompts, db.quickPrompts, db.snippets, db.commands, db.attachments], async () => {
     if (mode === 'replace') {
-      await Promise.all([db.prompts.clear(), db.quickPrompts.clear(), db.snippets.clear(), db.attachments.clear()]);
+      await Promise.all([db.prompts.clear(), db.quickPrompts.clear(), db.snippets.clear(), db.commands.clear(), db.attachments.clear()]);
       await db.prompts.bulkAdd(metadata.prompts);
       await db.quickPrompts.bulkAdd(metadata.quickPrompts);
       await db.snippets.bulkAdd(metadata.snippets);
+      await db.commands.bulkAdd(metadata.commands);
       await db.attachments.bulkAdd(attachments);
       return;
     }
 
-    const [currentPrompts, currentQuick, currentSnippets] = await Promise.all([
+    const [currentPrompts, currentQuick, currentSnippets, currentCommands] = await Promise.all([
       db.prompts.toArray(),
       db.quickPrompts.toArray(),
       db.snippets.toArray(),
+      db.commands.toArray(),
     ]);
     const nextPosition = (records: { position: number }[]) => Math.max(-1, ...records.map(({ position }) => position)) + 1;
     const promptCopies = cloneWithIds(metadata.prompts, nextPosition(currentPrompts));
     const quickCopies = cloneWithIds(metadata.quickPrompts, nextPosition(currentQuick));
     const snippetCopies = cloneWithIds(metadata.snippets, nextPosition(currentSnippets));
+    const commandCopies = cloneWithIds(metadata.commands, nextPosition(currentCommands));
     const attachmentCopies = attachments.map((attachment) => ({
       ...attachment,
       id: newId(),
@@ -377,6 +389,7 @@ export async function importBackup(data: BackupData, mode: 'merge' | 'replace'):
     await db.prompts.bulkAdd(promptCopies.records);
     await db.quickPrompts.bulkAdd(quickCopies.records);
     await db.snippets.bulkAdd(snippetCopies.records);
+    await db.commands.bulkAdd(commandCopies.records);
     await db.attachments.bulkAdd(attachmentCopies);
   });
   return mode === 'replace' ? metadata.settings : undefined;
